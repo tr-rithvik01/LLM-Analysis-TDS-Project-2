@@ -1,0 +1,55 @@
+name: Deploy to Hugging Face Space
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      # HF does not want GitHub history
+      - name: Remove git history
+        run: rm -rf .git
+
+      # Add HF metadata (required)
+      - name: Add Hugging Face metadata
+        run: |
+          cat << 'EOF' > README.hf.md
+          ---
+          title: TDS Project 2 – LLM Analysis
+          emoji: 🧠
+          colorFrom: blue
+          colorTo: green
+          sdk: docker
+          app_port: 7860
+          ---
+          EOF
+          cat README.md >> README.hf.md
+          mv README.hf.md README.md
+
+      - name: Initialize git
+        run: |
+          git init --initial-branch=main
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+
+      - name: Commit files
+        run: |
+          git add .
+          git commit -m "Deploy from GitHub: ${{ github.sha }}"
+
+      - name: Push to Hugging Face
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_REPO: ${{ secrets.HF_REPO }}
+        run: |
+          git remote add hf https://huggingface.co/spaces/$HF_REPO
+          git push --force hf main
